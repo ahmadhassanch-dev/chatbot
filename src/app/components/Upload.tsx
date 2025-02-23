@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
 import api from '../api/axios';
+import { AxiosError } from 'axios';
+
+interface ApiErrorResponse {
+  error: string;
+}
 
 const Upload: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -17,23 +22,33 @@ const Upload: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log('Starting file upload...');
       // Convert file to base64 before sending
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
+        reader.onload = () => {
+          console.log('File successfully converted to base64');
+          resolve(reader.result as string);
+        };
+        reader.onerror = (error) => {
+          console.error('Error reading file:', error);
+          reject(error);
+        };
         reader.readAsDataURL(file);
       });
       
+      console.log('Sending request to API...');
       const response = await api.post('/api/upload', {
         image: base64Data,
         mimeType: file.type
       });
       
+      console.log('Response received:', response.data);
       setResponse(response.data.analysis);
     } catch (error) {
-      console.error('Error uploading file:', error);
-      setResponse('Error processing image');
+      console.error('Error details:', error);
+      const axiosError = error as AxiosError<ApiErrorResponse>;
+      setResponse(axiosError.response?.data?.error || 'Error processing image');
     } finally {
       setLoading(false);
     }
